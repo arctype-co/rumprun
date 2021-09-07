@@ -373,6 +373,10 @@ buildrump ()
 	echo '>> further setup for rumprun build'
 	echo '>>'
 
+	# Clean include path environment for Guix support
+	unset C_INCLUDE_PATH
+	unset CPLUS_INCLUDE_PATH
+
 	RUMPMAKE=${RUMPTOOLS}/rumpmake
 
 	TOOLTUPLE=$(${RUMPMAKE} -f bsd.own.mk \
