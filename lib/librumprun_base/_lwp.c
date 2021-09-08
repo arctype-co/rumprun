@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014, 2015 Antti Kantee.  All Rights Reserved.
+ * Copyright (c) 2021 Ryan Sundberg <ryan@arctype.co>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#define _lwp_park ___lwp_park60
 #include <sys/cdefs.h>
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@ struct rumprun_lwp {
 
 	struct lwpctl rl_lwpctl;
 	int rl_no_parking_hare;	/* a looney tunes reference ... finally! */
+	lwpid_t rl_waiting;
 
 	TAILQ_ENTRY(rumprun_lwp) rl_entries;
 };
@@ -71,6 +72,7 @@ static int curlwpid = FIRST_LWPID;
 
 static struct rumprun_lwp mainthread = {
 	.rl_lwpid = FIRST_LWPID,
+	.rl_waiting = 0,
 };
 
 static void rumprun_makelwp_tramp(void *);
@@ -115,6 +117,7 @@ rumprun_makelwp(void (*start)(void *), void *arg, void *private,
 	rl->rl_lwpid = ++curlwpid;
 	rl->rl_thread = bmk_sched_create_withtls("lwp", rl, 0,
 	    rumprun_makelwp_tramp, newlwp, stack_base, stack_size, private);
+	rl->rl_waiting = 0;
 	if (rl->rl_thread == NULL) {
 		free(rl);
 		rump_pub_lwproc_releaselwp();
@@ -254,10 +257,72 @@ _lwp_park(clockid_t clock_id, int flags, struct timespec *ts,
 }
 
 int
+_lwp_wait(lwpid_t wlwp, lwpid_t *rlwp)
+{
+	if (wlwp == 0) {
+		// wlwp == 0 not supported.
+		return ENOTSUP;
+	}
+	struct rumprun_lwp *rl;
+
+	if ((rl = lwpid2rl(wlwp)) == NULL) {
+		return ESRCH;
+	}
+
+	if (rl->rl_waiting < 0) {
+		// wlwp is detached.
+		return EINVAL;
+	}
+
+	rl->rl_waiting = me->rl_lwpid;
+
+	// Block.
+	bmk_sched_blockprepare();
+	int rv = bmk_sched_block();
+	if (rv != 0) {
+		errno = EINTR;
+		return errno;
+	}
+
+	if (rlwp != NULL) {
+		*rlwp = wlwp;
+	}
+	return 0;
+}
+
+int
+_lwp_detach(lwpid_t lwp)
+{
+	if (me->rl_waiting < 0) {
+		// Already detached.
+		return EINVAL;
+	}
+	me->rl_waiting = -1;
+	return 0;
+}
+
+int
 _lwp_exit(void)
 {
-
 	me->rl_lwpctl.lc_curcpu = LWPCTL_CPU_EXITED;
+
+	for (;;) {
+		if (me->rl_waiting > 0) {
+			struct rumprun_lwp *rl;
+			if ((rl = lwpid2rl(me->rl_waiting)) == NULL) {
+				return -1;
+			}
+			bmk_sched_wake(rl->rl_thread);
+			break;
+		} else if (me->rl_waiting < 0) {
+			// detached
+			break;
+		} else {
+			// not detached, no waiting pid
+			bmk_sched_yield();
+		}
+	}
+
 	rump_pub_lwproc_releaselwp();
 	TAILQ_REMOVE(&all_lwp, me, rl_entries);
 
