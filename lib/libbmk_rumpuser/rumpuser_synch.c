@@ -168,6 +168,12 @@ rumpuser_mutex_enter_nowrap(struct rumpuser_mtx *mtx)
 }
 
 int
+rumpuser_mutex_spin_p(struct rumpuser_mtx *mtx)
+{
+	return (mtx->flags & RUMPUSER_MTX_SPIN) != 0;
+}
+
+int
 rumpuser_mutex_tryenter(struct rumpuser_mtx *mtx)
 {
 	struct lwp *l = rumpuser_curlwp();

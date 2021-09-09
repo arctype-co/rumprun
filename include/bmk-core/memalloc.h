@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Antti Kantee.  All Rights Reserved.
+ * Copyright (c) 2021 Ryan Sundberg <ryan@arctype.co>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,6 +78,9 @@ void    bmk_memfree(void *, enum bmk_memwho);
 void *  bmk_memrealloc_user(void *, unsigned long);
 
 void *  bmk_xmalloc_bmk(unsigned long);
+void  bmk_malloc_prefork(void);
+void  bmk_malloc_postfork(void);
+void  bmk_malloc_postfork_child(void);
 
 /* diagnostic */
 void	bmk_memalloc_printstats(void);

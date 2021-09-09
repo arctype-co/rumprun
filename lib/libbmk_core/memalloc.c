@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013, 2015 Antti Kantee.  All rights reserved.
+ * Copyright (c) 2021 Ryan Sundberg <ryan@arctype.co>
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -373,6 +374,24 @@ bmk_memalloc_printstats(void)
   	}
 	bmk_printf("\n\tTotal in use: %lukB, total free in buckets: %lukB\n",
 	    totused/1024, totfree/1024);
+}
+
+void
+bmk_malloc_prefork(void)
+{
+	malloc_lock();
+}
+
+void
+bmk_malloc_postfork(void)
+{
+	malloc_unlock();
+}
+
+void
+bmk_malloc_postfork_child(void)
+{
+	malloc_unlock();
 }
 
 

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2014 Antti Kantee.  All Rights Reserved.
+ * Copyright (c) 2021 Ryan Sundberg <ryan@arctype.co>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +50,28 @@ malloc(size_t size)
 {
 
 	return bmk_memalloc(size, 8, BMK_MEMWHO_USER);
+}
+
+void _malloc_prefork(void);
+void _malloc_postfork(void);
+void _malloc_postfork_child(void);
+
+void
+_malloc_prefork(void)
+{
+	bmk_malloc_prefork();
+}
+
+void
+_malloc_postfork(void)
+{
+	bmk_malloc_postfork();
+}
+
+void
+_malloc_postfork_child(void)
+{
+	bmk_malloc_postfork_child();
 }
 
 void *
